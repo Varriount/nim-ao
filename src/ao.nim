@@ -16,40 +16,38 @@ from posix import
 type
   ao_device* = pointer
   ao_sample_format* = object
-    bitDepth   : cint
-    sampleRate : cint
-    channels   : cint
-    byteFmt    : TAoEndian
-    matrix     : cstring
+    bitDepth, sampleRate, channels: cint
+    byteFmt: TAoEndian
+    matrix: cstring
   ao_option* = object
-    key   : cstring
-    value : cstring
-    next  : ptr ao_option
+    key, value: cstring
+    next: ptr ao_option
   TAoDeviceType* = enum
     AO_TYPE_LIVE = 1,
     AO_TYPE_FILE = 2,
   TAoError* = enum
-    AO_ENODRIVER   = 1,
-    AO_ENOTFILE    = 2,
-    AO_ENOTLIVE    = 3,
-    AO_EBADOPTION  = 4,
+    AO_ENODRIVER = 1,
+    AO_ENOTFILE = 2,
+    AO_ENOTLIVE = 3,
+    AO_EBADOPTION = 4,
     AO_EOPENDEVICE = 5,
-    AO_EOPENFILE   = 6,
-    AO_EFILEEXIST  = 7,
-    AO_EBADFORMAT  = 8,
-    AO_EFAIL       = 100
+    AO_EOPENFILE = 6,
+    AO_EFILEEXIST = 7,
+    AO_EBADFORMAT = 8,
+    AO_EFAIL = 100
   TAoEndian* = enum
     AO_FMT_LITTLE = 1,
-    AO_FMT_BIG    = 2,
+    AO_FMT_BIG = 2,
     AO_FMT_NATIVE = 4,
     
 {.push importc.}
 
 proc ao_default_driver_id*(): cint
 proc ao_driver_id*(short_name: cstring): cint
-proc ao_open_live*(driver_id: cint, format: ptr ao_sample_format, options: ptr ao_option):
-  ao_device
-proc ao_play*(device: ao_device, output_samples: cstring, num_bytes: cuint): cint
+proc ao_open_live*(driver_id: cint, format: ptr ao_sample_format,
+  options: ptr ao_option): ao_device
+proc ao_play*(device: ao_device, output_samples: cstring, num_bytes: cuint):
+  cint
 proc ao_close*(device: ao_device): cint
 
 {.pop.} # importc
@@ -61,20 +59,20 @@ proc shutdown*() {.importc: "ao_shutdown"}
 
 type
   PDevice* = ref object
-    device* : ao_device
-    fmt*    : TSampleFmt
+    device*: ao_device
+    fmt*: TSampleFmt
   TSampleFmt = object
     val: ao_sample_format
   TDriver* = enum
     default = "",
-    alsa    = "alsa",
-    wmm     = "wmm",
-    null    = "null"
+    alsa = "alsa",
+    wmm = "wmm",
+    null = "null"
   EAo* = object of E_Base
 
 # PDevice.
 
-proc newDevice*(fmt: TSampleFmt, driver=TDriver.default): PDevice =
+proc newDevice*(fmt: TSampleFmt, driver = TDriver.default): PDevice =
   var
     driverId: cint
     err: string
@@ -91,20 +89,20 @@ proc newDevice*(fmt: TSampleFmt, driver=TDriver.default): PDevice =
 
   new(result)
   var tmpFmt = fmt
-  result.device = ao_open_live(driverId, addr(tmpFmt.val), nil)
+  result.device = ao_open_live(driverId, tmpFmt.val.addr, nil)
 
   if result.device != nil:
     result.fmt = fmt
     return
 
   err = case errno
-    of cint(AO_ENODRIVER):
+    of AO_ENODRIVER.cint:
       "No such audio driver: " & $driver
-    of cint(AO_ENOTLIVE):
+    of AO_ENOTLIVE.cint:
       " is not a live device"
-    of cint(AO_EBADOPTION):
+    of AO_EBADOPTION.cint:
       "An invalid value has been specified for one of the options"
-    of cint(AO_EOPENDEVICE):
+    of AO_EOPENDEVICE.cint:
       "Unable to open audio device"
     else:
       "Unknown error code: " & $errno
@@ -112,7 +110,7 @@ proc newDevice*(fmt: TSampleFmt, driver=TDriver.default): PDevice =
   raise newException(EAo, err)
 
 proc play*[T](o: PDevice, samples: openArray[T]) =
-  if ao_play(o.device, cast[cstring](samples), cuint(samples.len)) == 0:
+  if ao_play(o.device, cast[cstring](samples), samples.len.cuint) == 0:
     o.close()
     raise newException(EAo, "Unable to play audio. Closing the device")
 
@@ -122,16 +120,16 @@ proc close*(o: PDevice) =
 
 # TSampleFmt.
 
-proc newSampleFmt*(bitDepth: int, sampleRate: int, channels: int, endian: TEndian=cpuEndian):
-    TSampleFmt =
+proc newSampleFmt*(bitDepth: int, sampleRate: int, channels: int,
+    endian: TEndian = cpuEndian): TSampleFmt =
   assert bitDepth == 8 or bitDepth == 16
   assert sampleRate >= 8000
   assert sampleRate <= 192000
   assert channels > 0
 
-  result.val.bitDepth = cint(bitDepth)
-  result.val.sampleRate = cint(sampleRate)
-  result.val.channels = cint(channels)
+  result.val.bitDepth = bitDepth.cint
+  result.val.sampleRate = sampleRate.cint
+  result.val.channels = channels.cint
   result.val.byteFmt = case endian
     of bigEndian:
       AO_FMT_BIG
