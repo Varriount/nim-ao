@@ -120,11 +120,8 @@ proc close*(o: PDevice) =
 
 # TSampleFmt.
 
-proc newSampleFmt*(bitDepth: int, sampleRate: int, channels: int,
+proc newSampleFmt*(bitDepth, sampleRate: Positive, channels: Positive,
     endian: TEndian = cpuEndian): TSampleFmt =
-  assert bitDepth == 8 or bitDepth == 16
-  assert sampleRate >= 8000
-  assert sampleRate <= 192000
   assert channels > 0
 
   result.val.bitDepth = bitDepth.cint
